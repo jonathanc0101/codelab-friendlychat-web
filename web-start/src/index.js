@@ -48,10 +48,22 @@ import { getPerformance } from 'firebase/performance';
 
 import { getFirebaseConfig } from './firebase-config.js';
 
+const firebaseAppConfig = getFirebaseConfig();
+// TODO 0: Initialize Firebase
+
+// TODO 12: Initialize Firebase Performance Monitoring
+initializeApp(firebaseAppConfig);
+
 // Signs-in Friendly Chat.
 async function signIn() {
   // Sign in Firebase using popup auth and Google as the identity provider.
   var provider = new GoogleAuthProvider();
+  await signInWithPopup(getAuth(), provider);
+}
+
+async function signInWithFacebook(){
+  // Sign in Firebase using popup auth and facebook as the identity provider.
+  var provider = new FacebookAuthProvider();
   await signInWithPopup(getAuth(), provider);
 }
 
@@ -79,7 +91,7 @@ function getUserName() {
 
 // Returns true if a user is signed-in.
 function isUserSignedIn() {
-  return !!getAuth().currentUser;
+  return !! getAuth().user;
 }
 // Saves a new message to Cloud Firestore.
 async function saveMessage(messageText) {
@@ -175,9 +187,17 @@ async function saveMessagingDeviceToken() {
 
 // Requests permissions to show notifications.
 async function requestNotificationsPermissions() {
-  // TODO 11: Request permissions to send notifications.
+  console.log('Requesting notifications permission...');
+  const permission = await Notification.requestPermission();
+  
+  if (permission === 'granted') {
+    console.log('Notification permission granted.');
+    // Notification permission granted.
+    await saveMessagingDeviceToken();
+  } else {
+    console.log('Unable to get permission to notify.');
+  }
 }
-
 // Triggered when a file is selected via the media picker.
 function onMediaFileSelected(event) {
   event.preventDefault();
@@ -397,6 +417,7 @@ var mediaCaptureElement = document.getElementById('mediaCapture');
 var userPicElement = document.getElementById('user-pic');
 var userNameElement = document.getElementById('user-name');
 var signInButtonElement = document.getElementById('sign-in');
+var signInButtonElementFacebook = document.getElementById('sign-in-fb');
 var signOutButtonElement = document.getElementById('sign-out');
 var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 
@@ -404,6 +425,7 @@ var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 messageFormElement.addEventListener('submit', onMessageFormSubmit);
 signOutButtonElement.addEventListener('click', signOutUser);
 signInButtonElement.addEventListener('click', signIn);
+signInButtonElementFacebook.addEventListener('click', signInWithFacebook);
 
 // Toggle for the button.
 messageInputElement.addEventListener('keyup', toggleButton);
@@ -416,11 +438,7 @@ imageButtonElement.addEventListener('click', function (e) {
 });
 mediaCaptureElement.addEventListener('change', onMediaFileSelected);
 
-const firebaseAppConfig = getFirebaseConfig();
-// TODO 0: Initialize Firebase
 
-// TODO 12: Initialize Firebase Performance Monitoring
-initializeApp(firebaseAppConfig);
 
 initFirebaseAuth();
 loadMessages();
