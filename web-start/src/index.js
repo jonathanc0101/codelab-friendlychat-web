@@ -91,7 +91,7 @@ function getUserName() {
 
 // Returns true if a user is signed-in.
 function isUserSignedIn() {
-  return !! getAuth().user;
+  return !! getAuth().currentUser;
 }
 // Saves a new message to Cloud Firestore.
 async function saveMessage(messageText) {
