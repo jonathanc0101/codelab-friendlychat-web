@@ -59,6 +59,7 @@ async function signIn() {
   // Sign in Firebase using popup auth and Google as the identity provider.
   var provider = new GoogleAuthProvider();
   await signInWithPopup(getAuth(), provider);
+  hideFbButton();
 }
 
 async function signInWithFacebook(){
@@ -68,9 +69,9 @@ async function signInWithFacebook(){
 }
 
 // Signs-out of Friendly Chat.
-function signOutUser() {
+function signOutGoogleUser() {
   // Sign out of Firebase.
-  signOut(getAuth());
+  signOut(getAuth()).then(() => showFbButton());
 }
 
 // Initialize firebase auth
@@ -423,7 +424,7 @@ var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);
-signOutButtonElement.addEventListener('click', signOutUser);
+signOutButtonElement.addEventListener('click', signOutGoogleUser);
 signInButtonElement.addEventListener('click', signIn);
 signInButtonElementFacebook.addEventListener('click', signInWithFacebook);
 
@@ -438,7 +439,13 @@ imageButtonElement.addEventListener('click', function (e) {
 });
 mediaCaptureElement.addEventListener('change', onMediaFileSelected);
 
+function hideFbButton(){
+  signInButtonElementFacebook.style.display = "none";
+}
 
+function showFbButton(){
+  signInButtonElementFacebook.style.display = "block";
+}
 
 initFirebaseAuth();
 loadMessages();
