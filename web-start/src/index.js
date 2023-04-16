@@ -109,10 +109,11 @@ async function saveMessage(messageText) {
   }
 }
 
+let maxAmountOfMessages = 12;
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
   // Create the query to load the last 12 messages and listen for new ones.
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(12));
+  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(maxAmountOfMessages));
   
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function(snapshot) {
@@ -127,6 +128,14 @@ function loadMessages() {
     });
   });
 }
+
+// Triggered when the show 5 new messages button is pressed.
+function onFiveNewMessagesButtonPressed() {
+  maxAmountOfMessages += 5;
+  loadMessages();
+
+}
+
 
 // Saves a new message containing an image in Firebase.
 // This first saves the image in Firebase storage.
@@ -233,6 +242,7 @@ function onMessageFormSubmit(e) {
     });
   }
 }
+
 
 // Triggers when the auth state change for instance when the user signs-in or signs-out.
 function authStateObserver(user) {
@@ -409,6 +419,7 @@ function toggleButton() {
 }
 
 // Shortcuts to DOM Elements.
+var messageLoadFiveMoreButtonElement = document.getElementById("load-five-more");
 var messageListElement = document.getElementById('messages');
 var messageFormElement = document.getElementById('message-form');
 var messageInputElement = document.getElementById('message');
@@ -422,6 +433,9 @@ var signInButtonElement = document.getElementById('sign-in');
 var signInButtonElementFacebook = document.getElementById('sign-in-fb');
 var signOutButtonElement = document.getElementById('sign-out');
 var signInSnackbarElement = document.getElementById('must-signin-snackbar');
+
+//load five more messages
+messageLoadFiveMoreButtonElement.addEventListener("click",onFiveNewMessagesButtonPressed);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);
