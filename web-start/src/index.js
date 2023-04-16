@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict';
+"use strict";
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from "firebase/app";
 import {
   getAuth,
   onAuthStateChanged,
@@ -23,7 +23,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-} from 'firebase/auth';
+} from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -36,17 +36,18 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
-} from 'firebase/firestore';
+  where,
+} from "firebase/firestore";
 import {
   getStorage,
   ref,
   uploadBytesResumable,
   getDownloadURL,
-} from 'firebase/storage';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { getPerformance } from 'firebase/performance';
+} from "firebase/storage";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getPerformance } from "firebase/performance";
 
-import { getFirebaseConfig } from './firebase-config.js';
+import { getFirebaseConfig } from "./firebase-config.js";
 
 const firebaseAppConfig = getFirebaseConfig();
 // TODO 0: Initialize Firebase
@@ -61,7 +62,7 @@ async function signIn() {
   await signInWithPopup(getAuth(), provider);
 }
 
-async function signInWithFacebook(){
+async function signInWithFacebook() {
   // Sign in Firebase using popup auth and facebook as the identity provider.
   var provider = new FacebookAuthProvider();
   await signInWithPopup(getAuth(), provider);
@@ -81,7 +82,7 @@ function initFirebaseAuth() {
 
 // Returns the signed-in user's profile Pic URL.
 function getProfilePicUrl() {
-  return getAuth().currentUser.photoURL || '/images/profile_placeholder.png';
+  return getAuth().currentUser.photoURL || "/images/profile_placeholder.png";
 }
 
 // Returns the signed-in user's display name.
@@ -91,79 +92,125 @@ function getUserName() {
 
 // Returns true if a user is signed-in.
 function isUserSignedIn() {
-  return !! getAuth().currentUser;
+  return !!getAuth().currentUser;
 }
 // Saves a new message to Cloud Firestore.
 async function saveMessage(messageText) {
   // Add a new message entry to the Firebase database.
   try {
-    await addDoc(collection(getFirestore(), 'messages'), {
+    await addDoc(collection(getFirestore(), "messages"), {
       name: getUserName(),
       text: messageText,
       profilePicUrl: getProfilePicUrl(),
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
     });
-  }
-  catch(error) {
-    console.error('Error writing new message to Firebase Database', error);
+  } catch (error) {
+    console.error("Error writing new message to Firebase Database", error);
   }
 }
 
-let maxAmountOfMessages = 12;
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
   // Create the query to load the last 12 messages and listen for new ones.
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(maxAmountOfMessages));
-  
+  const recentMessagesQuery = query(
+    collection(getFirestore(), "messages"),
+    orderBy("timestamp", "desc"),
+    limit(12)
+  );
+
   // Start listening to the query.
-  onSnapshot(recentMessagesQuery, function(snapshot) {
-    snapshot.docChanges().forEach(function(change) {
-      if (change.type === 'removed') {
+  onSnapshot(recentMessagesQuery, function (snapshot) {
+    snapshot.docChanges().forEach(function (change) {
+      if (change.type === "removed") {
         deleteMessage(change.doc.id);
       } else {
         var message = change.doc.data();
-        displayMessage(change.doc.id, message.timestamp, message.name,
-                      message.text, message.profilePicUrl, message.imageUrl);
+        displayMessage(
+          change.doc.id,
+          message.timestamp,
+          message.name,
+          message.text,
+          message.profilePicUrl,
+          message.imageUrl
+        );
       }
     });
   });
 }
 
-// Triggered when the show 5 new messages button is pressed.
-function onFiveNewMessagesButtonPressed() {
-  maxAmountOfMessages += 5;
-  loadMessages();
+function getEarliestTimestamp() {
+  // get earliest timestamp of all messages
+  const existingMessages = messageListElement.children;
 
+  if (existingMessages.length === 0) {
+    return Date.now();
+  } else {
+    let messageListNode = existingMessages[0];
+    return messageListNode.getAttribute("timestamp")
+  }
 }
 
+// Triggered when the show 5 new messages button is pressed.
+function onFiveNewMessagesButtonPressed() {
+  const recentMessagesQuery = query(
+    collection(getFirestore(), "messages"),
+    orderBy("timestamp", "desc"),
+    where("timestamp", "<", getEarliestTimestamp()),
+    limit(5)
+  );
+
+  // Start listening to the query.
+  onSnapshot(recentMessagesQuery, function (snapshot) {
+    snapshot.docChanges().forEach(function (change) {
+      if (change.type === "removed") {
+        deleteMessage(change.doc.id);
+      } else {
+        var message = change.doc.data();
+        displayMessage(
+          change.doc.id,
+          message.timestamp,
+          message.name,
+          message.text,
+          message.profilePicUrl,
+          message.imageUrl
+        );
+      }
+    });
+  });
+}
 
 // Saves a new message containing an image in Firebase.
 // This first saves the image in Firebase storage.
 async function saveImageMessage(file) {
   try {
     // 1 - We add a message with a loading icon that will get updated with the shared image.
-    const messageRef = await addDoc(collection(getFirestore(), 'messages'), {
+    const messageRef = await addDoc(collection(getFirestore(), "messages"), {
       name: getUserName(),
       imageUrl: LOADING_IMAGE_URL,
       profilePicUrl: getProfilePicUrl(),
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
     });
 
     // 2 - Upload the image to Cloud Storage.
-    const filePath = `${getAuth().currentUser.uid}/${messageRef.id}/${file.name}`;
+    const filePath = `${getAuth().currentUser.uid}/${messageRef.id}/${
+      file.name
+    }`;
     const newImageRef = ref(getStorage(), filePath);
     const fileSnapshot = await uploadBytesResumable(newImageRef, file);
-    
+
     // 3 - Generate a public URL for the file.
     const publicImageUrl = await getDownloadURL(newImageRef);
 
     // 4 - Update the chat message placeholder with the image's URL.
-    await updateDoc(messageRef,{
+    await updateDoc(messageRef, {
       imageUrl: publicImageUrl,
-      storageUri: fileSnapshot.metadata.fullPath
+      storageUri: fileSnapshot.metadata.fullPath,
     });
   } catch (error) {
-    console.error('There was an error uploading a file to Cloud Storage:', error);
+    console.error(
+      "There was an error uploading a file to Cloud Storage:",
+      error
+    );
   }
 }
 
@@ -172,16 +219,16 @@ async function saveMessagingDeviceToken() {
   try {
     const currentToken = await getToken(getMessaging());
     if (currentToken) {
-      console.log('Got FCM device token:', currentToken);
+      console.log("Got FCM device token:", currentToken);
       // Saving the Device Token to Cloud Firestore.
-      const tokenRef = doc(getFirestore(), 'fcmTokens', currentToken);
+      const tokenRef = doc(getFirestore(), "fcmTokens", currentToken);
       await setDoc(tokenRef, { uid: getAuth().currentUser.uid });
 
       // This will fire when a message is received while the app is in the foreground.
       // When the app is in the background, firebase-messaging-sw.js will receive the message instead.
       onMessage(getMessaging(), (message) => {
         console.log(
-          'New foreground notification from Firebase Messaging!',
+          "New foreground notification from Firebase Messaging!",
           message.notification
         );
       });
@@ -189,22 +236,22 @@ async function saveMessagingDeviceToken() {
       // Need to request permissions to show notifications.
       requestNotificationsPermissions();
     }
-  } catch(error) {
-    console.error('Unable to get messaging token.', error);
-  };
+  } catch (error) {
+    console.error("Unable to get messaging token.", error);
+  }
 }
 
 // Requests permissions to show notifications.
 async function requestNotificationsPermissions() {
-  console.log('Requesting notifications permission...');
+  console.log("Requesting notifications permission...");
   const permission = await Notification.requestPermission();
-  
-  if (permission === 'granted') {
-    console.log('Notification permission granted.');
+
+  if (permission === "granted") {
+    console.log("Notification permission granted.");
     // Notification permission granted.
     await saveMessagingDeviceToken();
   } else {
-    console.log('Unable to get permission to notify.');
+    console.log("Unable to get permission to notify.");
   }
 }
 // Triggered when a file is selected via the media picker.
@@ -216,9 +263,9 @@ function onMediaFileSelected(event) {
   imageFormElement.reset();
 
   // Check if the file is an image.
-  if (!file.type.match('image.*')) {
+  if (!file.type.match("image.*")) {
     var data = {
-      message: 'You can only share images',
+      message: "You can only share images",
       timeout: 2000,
     };
     signInSnackbarElement.MaterialSnackbar.showSnackbar(data);
@@ -243,7 +290,6 @@ function onMessageFormSubmit(e) {
   }
 }
 
-
 // Triggers when the auth state change for instance when the user signs-in or signs-out.
 function authStateObserver(user) {
   if (user) {
@@ -254,30 +300,30 @@ function authStateObserver(user) {
 
     // Set the user's profile pic and name.
     userPicElement.style.backgroundImage =
-      'url(' + addSizeToGoogleProfilePic(profilePicUrl) + ')';
+      "url(" + addSizeToGoogleProfilePic(profilePicUrl) + ")";
     userNameElement.textContent = userName;
 
     // Show user's profile and sign-out button.
-    userNameElement.removeAttribute('hidden');
-    userPicElement.removeAttribute('hidden');
-    signOutButtonElement.removeAttribute('hidden');
+    userNameElement.removeAttribute("hidden");
+    userPicElement.removeAttribute("hidden");
+    signOutButtonElement.removeAttribute("hidden");
 
     // Hide sign-in button.
-    signInButtonElement.setAttribute('hidden', 'true');
-    signInButtonElementFacebook.setAttribute('hidden', 'true');
+    signInButtonElement.setAttribute("hidden", "true");
+    signInButtonElementFacebook.setAttribute("hidden", "true");
 
     // We save the Firebase Messaging Device token and enable notifications.
     saveMessagingDeviceToken();
   } else {
     // User is signed out!
     // Hide user's profile and sign-out button.
-    userNameElement.setAttribute('hidden', 'true');
-    userPicElement.setAttribute('hidden', 'true');
-    signOutButtonElement.setAttribute('hidden', 'true');
+    userNameElement.setAttribute("hidden", "true");
+    userPicElement.setAttribute("hidden", "true");
+    signOutButtonElement.setAttribute("hidden", "true");
 
     // Show sign-in button.
-    signInButtonElement.removeAttribute('hidden');
-    signInButtonElementFacebook.removeAttribute('hidden');
+    signInButtonElement.removeAttribute("hidden");
+    signInButtonElementFacebook.removeAttribute("hidden");
   }
 }
 
@@ -290,7 +336,7 @@ function checkSignedInWithMessage() {
 
   // Display a message to the user using a Toast.
   var data = {
-    message: 'You must sign-in first',
+    message: "You must sign-in first",
     timeout: 2000,
   };
   signInSnackbarElement.MaterialSnackbar.showSnackbar(data);
@@ -299,7 +345,7 @@ function checkSignedInWithMessage() {
 
 // Resets the given MaterialTextField.
 function resetMaterialTextfield(element) {
-  element.value = '';
+  element.value = "";
   element.parentNode.MaterialTextfield.boundUpdateClassesHandler();
 }
 
@@ -309,18 +355,18 @@ var MESSAGE_TEMPLATE =
   '<div class="spacing"><div class="pic"></div></div>' +
   '<div class="message"></div>' +
   '<div class="name"></div>' +
-  '</div>';
+  "</div>";
 
 // Adds a size to Google Profile pics URLs.
 function addSizeToGoogleProfilePic(url) {
-  if (url.indexOf('googleusercontent.com') !== -1 && url.indexOf('?') === -1) {
-    return url + '?sz=150';
+  if (url.indexOf("googleusercontent.com") !== -1 && url.indexOf("?") === -1) {
+    return url + "?sz=150";
   }
   return url;
 }
 
 // A loading image URL.
-var LOADING_IMAGE_URL = 'https://www.google.com/images/spin-32.gif?a';
+var LOADING_IMAGE_URL = "https://www.google.com/images/spin-32.gif?a";
 
 // Delete a Message from the UI.
 function deleteMessage(id) {
@@ -332,15 +378,15 @@ function deleteMessage(id) {
 }
 
 function createAndInsertMessage(id, timestamp) {
-  const container = document.createElement('div');
+  const container = document.createElement("div");
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
-  div.setAttribute('id', id);
+  div.setAttribute("id", id);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
   timestamp = timestamp ? timestamp.toMillis() : Date.now();
-  div.setAttribute('timestamp', timestamp);
+  div.setAttribute("timestamp", timestamp);
 
   // figure out where to insert new message
   const existingMessages = messageListElement.children;
@@ -350,7 +396,7 @@ function createAndInsertMessage(id, timestamp) {
     let messageListNode = existingMessages[0];
 
     while (messageListNode) {
-      const messageListNodeTime = messageListNode.getAttribute('timestamp');
+      const messageListNodeTime = messageListNode.getAttribute("timestamp");
 
       if (!messageListNodeTime) {
         throw new Error(
@@ -378,31 +424,31 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
 
   // profile picture
   if (picUrl) {
-    div.querySelector('.pic').style.backgroundImage =
-      'url(' + addSizeToGoogleProfilePic(picUrl) + ')';
+    div.querySelector(".pic").style.backgroundImage =
+      "url(" + addSizeToGoogleProfilePic(picUrl) + ")";
   }
 
-  div.querySelector('.name').textContent = name;
-  var messageElement = div.querySelector('.message');
+  div.querySelector(".name").textContent = name;
+  var messageElement = div.querySelector(".message");
 
   if (text) {
     // If the message is text.
     messageElement.textContent = text;
     // Replace all line breaks by <br>.
-    messageElement.innerHTML = messageElement.innerHTML.replace(/\n/g, '<br>');
+    messageElement.innerHTML = messageElement.innerHTML.replace(/\n/g, "<br>");
   } else if (imageUrl) {
     // If the message is an image.
-    var image = document.createElement('img');
-    image.addEventListener('load', function () {
+    var image = document.createElement("img");
+    image.addEventListener("load", function () {
       messageListElement.scrollTop = messageListElement.scrollHeight;
     });
-    image.src = imageUrl + '&' + new Date().getTime();
-    messageElement.innerHTML = '';
+    image.src = imageUrl + "&" + new Date().getTime();
+    messageElement.innerHTML = "";
     messageElement.appendChild(image);
   }
   // Show the card fading-in and scroll to view the new message.
   setTimeout(function () {
-    div.classList.add('visible');
+    div.classList.add("visible");
   }, 1);
   messageListElement.scrollTop = messageListElement.scrollHeight;
   messageInputElement.focus();
@@ -412,47 +458,51 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
 // fields.
 function toggleButton() {
   if (messageInputElement.value) {
-    submitButtonElement.removeAttribute('disabled');
+    submitButtonElement.removeAttribute("disabled");
   } else {
-    submitButtonElement.setAttribute('disabled', 'true');
+    submitButtonElement.setAttribute("disabled", "true");
   }
 }
 
 // Shortcuts to DOM Elements.
-var messageLoadFiveMoreButtonElement = document.getElementById("load-five-more");
-var messageListElement = document.getElementById('messages');
-var messageFormElement = document.getElementById('message-form');
-var messageInputElement = document.getElementById('message');
-var submitButtonElement = document.getElementById('submit');
-var imageButtonElement = document.getElementById('submitImage');
-var imageFormElement = document.getElementById('image-form');
-var mediaCaptureElement = document.getElementById('mediaCapture');
-var userPicElement = document.getElementById('user-pic');
-var userNameElement = document.getElementById('user-name');
-var signInButtonElement = document.getElementById('sign-in');
-var signInButtonElementFacebook = document.getElementById('sign-in-fb');
-var signOutButtonElement = document.getElementById('sign-out');
-var signInSnackbarElement = document.getElementById('must-signin-snackbar');
+var messageLoadFiveMoreButtonElement =
+  document.getElementById("load-five-more");
+var messageListElement = document.getElementById("messages");
+var messageFormElement = document.getElementById("message-form");
+var messageInputElement = document.getElementById("message");
+var submitButtonElement = document.getElementById("submit");
+var imageButtonElement = document.getElementById("submitImage");
+var imageFormElement = document.getElementById("image-form");
+var mediaCaptureElement = document.getElementById("mediaCapture");
+var userPicElement = document.getElementById("user-pic");
+var userNameElement = document.getElementById("user-name");
+var signInButtonElement = document.getElementById("sign-in");
+var signInButtonElementFacebook = document.getElementById("sign-in-fb");
+var signOutButtonElement = document.getElementById("sign-out");
+var signInSnackbarElement = document.getElementById("must-signin-snackbar");
 
 //load five more messages
-messageLoadFiveMoreButtonElement.addEventListener("click",onFiveNewMessagesButtonPressed);
+messageLoadFiveMoreButtonElement.addEventListener(
+  "click",
+  onFiveNewMessagesButtonPressed
+);
 
 // Saves message on form submit.
-messageFormElement.addEventListener('submit', onMessageFormSubmit);
-signOutButtonElement.addEventListener('click', signOutGoogleUser);
-signInButtonElement.addEventListener('click', signIn);
-signInButtonElementFacebook.addEventListener('click', signInWithFacebook);
+messageFormElement.addEventListener("submit", onMessageFormSubmit);
+signOutButtonElement.addEventListener("click", signOutGoogleUser);
+signInButtonElement.addEventListener("click", signIn);
+signInButtonElementFacebook.addEventListener("click", signInWithFacebook);
 
 // Toggle for the button.
-messageInputElement.addEventListener('keyup', toggleButton);
-messageInputElement.addEventListener('change', toggleButton);
+messageInputElement.addEventListener("keyup", toggleButton);
+messageInputElement.addEventListener("change", toggleButton);
 
 // Events for image upload.
-imageButtonElement.addEventListener('click', function (e) {
+imageButtonElement.addEventListener("click", function (e) {
   e.preventDefault();
   mediaCaptureElement.click();
 });
-mediaCaptureElement.addEventListener('change', onMediaFileSelected);
+mediaCaptureElement.addEventListener("change", onMediaFileSelected);
 
 initFirebaseAuth();
 loadMessages();
