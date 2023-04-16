@@ -59,7 +59,6 @@ async function signIn() {
   // Sign in Firebase using popup auth and Google as the identity provider.
   var provider = new GoogleAuthProvider();
   await signInWithPopup(getAuth(), provider);
-  hideFbButton();
 }
 
 async function signInWithFacebook(){
@@ -71,7 +70,7 @@ async function signInWithFacebook(){
 // Signs-out of Friendly Chat.
 function signOutGoogleUser() {
   // Sign out of Firebase.
-  signOut(getAuth()).then(() => showFbButton());
+  signOut(getAuth());
 }
 
 // Initialize firebase auth
@@ -255,6 +254,7 @@ function authStateObserver(user) {
 
     // Hide sign-in button.
     signInButtonElement.setAttribute('hidden', 'true');
+    signInButtonElementFacebook.setAttribute('hidden', 'true');
 
     // We save the Firebase Messaging Device token and enable notifications.
     saveMessagingDeviceToken();
@@ -267,6 +267,7 @@ function authStateObserver(user) {
 
     // Show sign-in button.
     signInButtonElement.removeAttribute('hidden');
+    signInButtonElementFacebook.removeAttribute('hidden');
   }
 }
 
@@ -438,14 +439,6 @@ imageButtonElement.addEventListener('click', function (e) {
   mediaCaptureElement.click();
 });
 mediaCaptureElement.addEventListener('change', onMediaFileSelected);
-
-function hideFbButton(){
-  signInButtonElementFacebook.style.display = "none";
-}
-
-function showFbButton(){
-  signInButtonElementFacebook.style.display = "block";
-}
 
 initFirebaseAuth();
 loadMessages();
