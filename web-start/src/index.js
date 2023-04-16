@@ -37,6 +37,7 @@ import {
   doc,
   serverTimestamp,
   where,
+  Timestamp
 } from "firebase/firestore";
 import {
   getStorage,
@@ -155,7 +156,7 @@ function onFiveNewMessagesButtonPressed() {
   const recentMessagesQuery = query(
     collection(getFirestore(), "messages"),
     orderBy("timestamp", "desc"),
-    where("timestamp", "<", getEarliestTimestamp()),
+    where("timestamp", "<",  Timestamp.fromDate(new Date(getEarliestTimestamp()))),
     limit(5)
   );
 
