@@ -15,7 +15,7 @@ service cloud.firestore {
                       && request.resource.data.text.size() <= 300
                       || request.resource.data.imageUrl is string
                       && request.resource.data.imageUrl.matches('https?://.*'));
-      allow delete: if false;
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.uid;
     }
     // FCM Tokens:
     //   - Anyone can write their token.
@@ -24,5 +24,9 @@ service cloud.firestore {
       allow read: if false;
       allow write;
     }
+  }
+
+  function isSignedIn() {
+    return request.auth.uid != null
   }
 }

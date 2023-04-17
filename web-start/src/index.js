@@ -35,9 +35,10 @@ import {
   setDoc,
   updateDoc,
   doc,
+  deleteDoc,
   serverTimestamp,
   where,
-  Timestamp
+  Timestamp,
 } from "firebase/firestore";
 import {
   getStorage,
@@ -104,6 +105,7 @@ async function saveMessage(messageText) {
       text: messageText,
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
+      uid: getAuth().currentUser.uid
     });
   } catch (error) {
     console.error("Error writing new message to Firebase Database", error);
@@ -147,7 +149,7 @@ function getEarliestTimestamp() {
     return Date.now();
   } else {
     let messageListNode = existingMessages[0];
-    return messageListNode.getAttribute("timestamp")
+    return messageListNode.getAttribute("timestamp");
   }
 }
 
@@ -156,7 +158,7 @@ function onFiveNewMessagesButtonPressed() {
   const recentMessagesQuery = query(
     collection(getFirestore(), "messages"),
     orderBy("timestamp", "desc"),
-    where("timestamp", "<",  Timestamp.fromMillis(getEarliestTimestamp())),
+    where("timestamp", "<", Timestamp.fromMillis(getEarliestTimestamp())),
     limit(5)
   );
 
@@ -378,11 +380,32 @@ function deleteMessage(id) {
   }
 }
 
+function addDeleteButton(id, parent) {
+  //Create an input type dynamically.
+  let btn = document.createElement("input");
+  const type = "button";
+  //Assign different attributes to the element.
+  btn.type = type;
+  btn.className = "mdl-button";
+  btn.value = "delete"; 
+  btn.onclick = function () {
+    // Note this is a function
+    deleteDoc(doc(getFirestore(),"messages",id))
+    .catch((error) => {
+      console.log('La respuesta de la API no fue exitosa');
+    })
+  };
+
+  //Append the element in page (in span).
+  parent.appendChild(btn);
+}
+
 function createAndInsertMessage(id, timestamp) {
   const container = document.createElement("div");
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute("id", id);
+  addDeleteButton(id, div);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
