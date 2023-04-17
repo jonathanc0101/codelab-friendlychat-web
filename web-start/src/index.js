@@ -156,7 +156,7 @@ function onFiveNewMessagesButtonPressed() {
   const recentMessagesQuery = query(
     collection(getFirestore(), "messages"),
     orderBy("timestamp", "desc"),
-    where("timestamp", "<",  Timestamp.fromDate(new Date(getEarliestTimestamp()))),
+    where("timestamp", "<",  Timestamp.fromMillis(getEarliestTimestamp())),
     limit(5)
   );
 
