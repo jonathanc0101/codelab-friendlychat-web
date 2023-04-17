@@ -1,0 +1,1 @@
+./scripts/parallel_commands.sh "firebase serve --only hosting" "npm run start"
