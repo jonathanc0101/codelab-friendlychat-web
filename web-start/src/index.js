@@ -39,6 +39,7 @@ import {
   serverTimestamp,
   where,
   Timestamp,
+  getDocs,
 } from "firebase/firestore";
 import {
   getStorage,
@@ -47,7 +48,6 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { getPerformance } from "firebase/performance";
 
 import { getFirebaseConfig } from "./firebase-config.js";
 
@@ -105,7 +105,7 @@ async function saveMessage(messageText) {
       text: messageText,
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
-      uid: getAuth().currentUser.uid
+      uid: getAuth().currentUser.uid,
     });
   } catch (error) {
     console.error("Error writing new message to Firebase Database", error);
@@ -380,6 +380,25 @@ function deleteMessage(id) {
   }
 }
 
+async function deleteSelfRecords() {
+  const fs = getFirestore();
+  const q = query(collection(fs, "messages"), where("uid", "==", getAuth().currentUser.uid));
+  const querySnapshot = await getDocs(q);
+
+  querySnapshot.forEach((d) => {
+    // doc.data() is never undefined for query doc snapshots
+    deleteDoc(doc(fs, "messages", d.id)).catch((error) => {
+      console.log("La respuesta de la API no fue exitosa");
+    });
+  });
+}
+
+function onMessageFormDeleteAllClick(){
+  if(isUserSignedIn()){
+    deleteSelfRecords();
+  }
+}
+
 function addDeleteButton(id, parent) {
   //Create an input type dynamically.
   let btn = document.createElement("input");
@@ -387,13 +406,12 @@ function addDeleteButton(id, parent) {
   //Assign different attributes to the element.
   btn.type = type;
   btn.className = "mdl-button";
-  btn.value = "delete"; 
+  btn.value = "delete";
   btn.onclick = function () {
     // Note this is a function
-    deleteDoc(doc(getFirestore(),"messages",id))
-    .catch((error) => {
-      console.log('La respuesta de la API no fue exitosa');
-    })
+    deleteDoc(doc(getFirestore(), "messages", id)).catch((error) => {
+      console.log("La respuesta de la API no fue exitosa");
+    });
   };
 
   //Append the element in page (in span).
@@ -492,6 +510,7 @@ function toggleButton() {
 var messageLoadFiveMoreButtonElement =
   document.getElementById("load-five-more");
 var messageListElement = document.getElementById("messages");
+var messageFormDeleteAllElement = document.getElementById("messages-delete-all");
 var messageFormElement = document.getElementById("message-form");
 var messageInputElement = document.getElementById("message");
 var submitButtonElement = document.getElementById("submit");
@@ -513,6 +532,7 @@ messageLoadFiveMoreButtonElement.addEventListener(
 
 // Saves message on form submit.
 messageFormElement.addEventListener("submit", onMessageFormSubmit);
+messageFormDeleteAllElement.addEventListener("click", onMessageFormDeleteAllClick);
 signOutButtonElement.addEventListener("click", signOutGoogleUser);
 signInButtonElement.addEventListener("click", signIn);
 signInButtonElementFacebook.addEventListener("click", signInWithFacebook);
