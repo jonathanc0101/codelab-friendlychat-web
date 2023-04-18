@@ -510,6 +510,7 @@ function toggleButton() {
 var messageLoadFiveMoreButtonElement =
   document.getElementById("load-five-more");
 var messageListElement = document.getElementById("messages");
+var dialog = document.getElementById('delete-all-dialog');
 var messageFormDeleteAllElement = document.getElementById("messages-delete-all");
 var messageFormElement = document.getElementById("message-form");
 var messageInputElement = document.getElementById("message");
@@ -532,7 +533,6 @@ messageLoadFiveMoreButtonElement.addEventListener(
 
 // Saves message on form submit.
 messageFormElement.addEventListener("submit", onMessageFormSubmit);
-messageFormDeleteAllElement.addEventListener("click", onMessageFormDeleteAllClick);
 signOutButtonElement.addEventListener("click", signOutGoogleUser);
 signInButtonElement.addEventListener("click", signIn);
 signInButtonElementFacebook.addEventListener("click", signInWithFacebook);
@@ -547,6 +547,24 @@ imageButtonElement.addEventListener("click", function (e) {
   mediaCaptureElement.click();
 });
 mediaCaptureElement.addEventListener("change", onMediaFileSelected);
+
+
+
+if (! dialog.showModal) {
+  dialogPolyfill.registerDialog(dialog);
+}
+messageFormDeleteAllElement.addEventListener('click', function() {
+  dialog.showModal();
+});
+
+document.getElementById("ok-delete-all-button").addEventListener('click', function() {
+  dialog.close();
+  onMessageFormDeleteAllClick();
+});
+
+dialog.querySelector('.close').addEventListener('click', function() {
+  dialog.close();
+});
 
 initFirebaseAuth();
 loadMessages();

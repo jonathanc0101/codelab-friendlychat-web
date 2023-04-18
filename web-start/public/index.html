@@ -80,6 +80,20 @@
   </header>
 
   <main class="mdl-layout__content mdl-color--grey-100">
+
+    <dialog class="mdl-dialog" id="delete-all-dialog">
+      <h4 class="mdl-dialog__title">Are you sure?</h4>
+      <div class="mdl-dialog__content">
+        <p>
+          This will delete all your messages in the chat.
+        </p>
+      </div>
+      <div class="mdl-dialog__actions">
+        <button type="button" class="mdl-button" id="ok-delete-all-button">Agree</button>
+        <button type="button" class="mdl-button close">Disagree</button>
+      </div>
+    </dialog>
+    
     <div id="messages-card-container" class="mdl-cell mdl-cell--12-col mdl-grid">
 
       <!-- Messages container -->
