@@ -46,6 +46,7 @@ import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
+  deleteObject,
 } from "firebase/storage";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -192,6 +193,7 @@ async function saveImageMessage(file) {
       imageUrl: LOADING_IMAGE_URL,
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
+      uid: getAuth().currentUser.uid,
     });
 
     // 2 - Upload the image to Cloud Storage.
@@ -380,16 +382,32 @@ function deleteMessage(id) {
   }
 }
 
+function deleteMessageObject(id,imageUrl){
+
+    const fs = getFirestore();
+    const storage = getStorage();
+
+    // doc.data() is never undefined for query doc snapshots
+    deleteDoc(doc(fs, "messages", id)).catch((error) => {
+      console.log("La respuesta de la API no fue exitosa");
+    });
+    
+    
+    if(imageUrl){
+      deleteObject(ref(storage, imageUrl)).catch((error) => {
+        console.log("La respuesta de la API al eliminar la imagen no fue exitosa");
+      });  
+    }
+  
+}
+
 async function deleteSelfRecords() {
-  const fs = getFirestore();
+
   const q = query(collection(fs, "messages"), where("uid", "==", getAuth().currentUser.uid));
   const querySnapshot = await getDocs(q);
 
   querySnapshot.forEach((d) => {
-    // doc.data() is never undefined for query doc snapshots
-    deleteDoc(doc(fs, "messages", d.id)).catch((error) => {
-      console.log("La respuesta de la API no fue exitosa");
-    });
+    deleteMessageObject(d.id,d.imageUrl)
   });
 }
 
@@ -399,7 +417,7 @@ function onMessageFormDeleteAllClick(){
   }
 }
 
-function addDeleteButton(id, parent) {
+function addDeleteButton(id, parent,imageUrl) {
   //Create an input type dynamically.
   let btn = document.createElement("input");
   const type = "button";
@@ -409,21 +427,19 @@ function addDeleteButton(id, parent) {
   btn.value = "delete";
   btn.onclick = function () {
     // Note this is a function
-    deleteDoc(doc(getFirestore(), "messages", id)).catch((error) => {
-      console.log("La respuesta de la API no fue exitosa");
-    });
+    deleteMessageObject(id,imageUrl);
   };
 
   //Append the element in page (in span).
   parent.appendChild(btn);
 }
 
-function createAndInsertMessage(id, timestamp) {
+function createAndInsertMessage(id, timestamp,imageUrl) {
   const container = document.createElement("div");
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute("id", id);
-  addDeleteButton(id, div);
+  addDeleteButton(id, div,imageUrl);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
@@ -462,7 +478,7 @@ function createAndInsertMessage(id, timestamp) {
 // Displays a Message in the UI.
 function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
   var div =
-    document.getElementById(id) || createAndInsertMessage(id, timestamp);
+    document.getElementById(id) || createAndInsertMessage(id, timestamp,imageUrl);
 
   // profile picture
   if (picUrl) {
