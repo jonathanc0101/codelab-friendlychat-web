@@ -135,7 +135,8 @@ function loadMessages() {
           message.name,
           message.text,
           message.profilePicUrl,
-          message.imageUrl
+          message.imageUrl,
+          message.imagePath
         );
       }
     });
@@ -188,18 +189,20 @@ function onFiveNewMessagesButtonPressed() {
 async function saveImageMessage(file) {
   try {
     // 1 - We add a message with a loading icon that will get updated with the shared image.
+    // 2 - Upload the image to Cloud Storage.
+    const filePath = `${getAuth().currentUser.uid}/${messageRef.id}/${
+      file.name
+    }`;
+
     const messageRef = await addDoc(collection(getFirestore(), "messages"), {
       name: getUserName(),
       imageUrl: LOADING_IMAGE_URL,
+      imagePath : filePath,
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
       uid: getAuth().currentUser.uid,
     });
 
-    // 2 - Upload the image to Cloud Storage.
-    const filePath = `${getAuth().currentUser.uid}/${messageRef.id}/${
-      file.name
-    }`;
     const newImageRef = ref(getStorage(), filePath);
     const fileSnapshot = await uploadBytesResumable(newImageRef, file);
 
@@ -382,7 +385,7 @@ function deleteMessage(id) {
   }
 }
 
-function deleteMessageObject(id,imageUrl){
+function deleteMessageObject(id,imagePath){
 
     const fs = getFirestore();
     const storage = getStorage();
@@ -393,8 +396,8 @@ function deleteMessageObject(id,imageUrl){
     });
     
     
-    if(imageUrl){
-      deleteObject(ref(storage, imageUrl)).catch((error) => {
+    if(imagePath){
+      deleteObject(ref(storage, imagePath)).catch((error) => {
         console.log("La respuesta de la API al eliminar la imagen no fue exitosa");
       });  
     }
@@ -417,7 +420,7 @@ function onMessageFormDeleteAllClick(){
   }
 }
 
-function addDeleteButton(id, parent,imageUrl) {
+function addDeleteButton(id, parent,imagePath) {
   //Create an input type dynamically.
   let btn = document.createElement("input");
   const type = "button";
@@ -427,19 +430,19 @@ function addDeleteButton(id, parent,imageUrl) {
   btn.value = "delete";
   btn.onclick = function () {
     // Note this is a function
-    deleteMessageObject(id,imageUrl);
+    deleteMessageObject(id,imagePath);
   };
 
   //Append the element in page (in span).
   parent.appendChild(btn);
 }
 
-function createAndInsertMessage(id, timestamp,imageUrl) {
+function createAndInsertMessage(id, timestamp,imagePath) {
   const container = document.createElement("div");
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute("id", id);
-  addDeleteButton(id, div,imageUrl);
+  addDeleteButton(id, div,imagePath);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
@@ -476,9 +479,9 @@ function createAndInsertMessage(id, timestamp,imageUrl) {
 }
 
 // Displays a Message in the UI.
-function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
+function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath) {
   var div =
-    document.getElementById(id) || createAndInsertMessage(id, timestamp,imageUrl);
+    document.getElementById(id) || createAndInsertMessage(id, timestamp,imagePath);
 
   // profile picture
   if (picUrl) {
