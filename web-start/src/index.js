@@ -410,7 +410,7 @@ async function deleteSelfRecords() {
   const querySnapshot = await getDocs(q);
 
   querySnapshot.forEach((d) => {
-    deleteMessageObject(d.id,d.imageUrl)
+    deleteMessageObject(d.id,d.imagePath)
   });
 }
 
