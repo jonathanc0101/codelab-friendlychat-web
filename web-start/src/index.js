@@ -138,7 +138,9 @@ function loadMessages() {
           message.text,
           message.profilePicUrl,
           message.imageUrl,
-          message.imagePath
+          message.imagePath,
+          message.favs,
+          
         );
       }
     });
@@ -179,7 +181,8 @@ function onFiveNewMessagesButtonPressed() {
           message.name,
           message.text,
           message.profilePicUrl,
-          message.imageUrl
+          message.imageUrl,
+          message.favs
         );
       }
     });
@@ -512,7 +515,7 @@ function createAndInsertMessage(id, timestamp,imagePath) {
 }
 
 // Displays a Message in the UI.
-function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath) {
+function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath,favs) {
   var div =
     document.getElementById(id) || createAndInsertMessage(id, timestamp,imagePath);
 
@@ -540,6 +543,17 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath) {
     messageElement.innerHTML = "";
     messageElement.appendChild(image);
   }
+
+  const fav_color = ";background-color: rgb(255 247 193)!important;";
+  
+  console.log(favs);
+
+  if(favs){
+    div.style = div.style + fav_color;
+  }else{
+    div.style -= fav_color;
+  }
+
   // Show the card fading-in and scroll to view the new message.
   setTimeout(function () {
     div.classList.add("visible");
