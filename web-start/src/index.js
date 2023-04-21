@@ -40,6 +40,7 @@ import {
   where,
   Timestamp,
   getDocs,
+  getDoc
 } from "firebase/firestore";
 import {
   getStorage,
@@ -107,6 +108,7 @@ async function saveMessage(messageText) {
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
       uid: getAuth().currentUser.uid,
+      favs:false,
     });
   } catch (error) {
     console.error("Error writing new message to Firebase Database", error);
@@ -201,6 +203,7 @@ async function saveImageMessage(file) {
       profilePicUrl: getProfilePicUrl(),
       timestamp: serverTimestamp(),
       uid: getAuth().currentUser.uid,
+      favs: false
     });
 
     const newImageRef = ref(getStorage(), filePath);
@@ -420,6 +423,34 @@ function onMessageFormDeleteAllClick(){
   }
 }
 
+function addFavouriteButton(id, parent) {
+  //Create an input type dynamically.
+  let btn = document.createElement("input");
+  const type = "button";
+  //Assign different attributes to the element.
+  btn.type = type;
+  btn.className = "mdl-button";
+  btn.value = "fav";
+  btn.onclick = function () {
+    // Note this is a function
+    toggleMessageToFavourites(id);
+  };
+  //Append the element in page (in span).
+  parent.appendChild(btn);
+}
+
+async function toggleMessageToFavourites(id){
+  const fs = getFirestore();
+  const messageref = doc(fs, "messages", id);
+  const mesageSnap = await getDoc(messageref);
+
+  if(mesageSnap.exists()){    
+    await updateDoc(messageref, {
+      favs: !mesageSnap.data().favs
+    });
+  }
+}
+
 function addDeleteButton(id, parent,imagePath) {
   //Create an input type dynamically.
   let btn = document.createElement("input");
@@ -442,7 +473,9 @@ function createAndInsertMessage(id, timestamp,imagePath) {
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute("id", id);
+  
   addDeleteButton(id, div,imagePath);
+  addFavouriteButton(id,div);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
