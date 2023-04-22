@@ -15,6 +15,8 @@
  */
 "use strict";
 
+let ONLY_FAVS_GLOBAL = false;
+
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -117,13 +119,89 @@ async function saveMessage(messageText) {
 
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
-  // Create the query to load the last 12 messages and listen for new ones.
-  const recentMessagesQuery = query(
-    collection(getFirestore(), "messages"),
-    orderBy("timestamp", "desc"),
-    limit(12)
-  );
 
+  // Create the query to load the last 12 messages and listen for new ones.
+  let recentMessagesQuery;
+  if(!ONLY_FAVS_GLOBAL){
+    recentMessagesQuery = query(
+      collection(getFirestore(), "messages"),
+      orderBy("timestamp", "desc"),
+      limit(12)
+    );
+  }else{
+    recentMessagesQuery = query(
+      collection(getFirestore(), "messages"),
+      orderBy("timestamp", "desc"),
+      where("favs", "==", true),
+      limit(12)
+    );
+  }
+
+  // Start listening to the query.
+  startListeningToTheQuery(recentMessagesQuery);
+}
+
+function getEarliestTimestamp() {
+  // get earliest timestamp of all messages
+  const existingMessages = messageListElement.children;
+
+  if (existingMessages.length === 0) {
+    return Date.now();
+  } else {
+    let messageListNode = existingMessages[0];
+    return messageListNode.getAttribute("timestamp");
+  }
+}
+
+
+function reloadMessagesFiltered(){
+  const existingMessages = messageListElement.children;
+
+  if(existingMessages.length !== 0){
+    let messageListNode = existingMessages[0];
+
+    while (messageListNode) {
+      const favsAttr = messageListNode.getAttribute("favs") == "true";
+      
+      tryToFilterMessageDiv(messageListNode,favsAttr);
+
+      messageListNode = messageListNode.nextSibling;
+    }
+  }
+
+}
+
+function onOnlyFavsCheckElementPressed(event){
+  ONLY_FAVS_GLOBAL = event.currentTarget.checked;
+  reloadMessagesFiltered();
+}
+
+// Triggered when the show 5 new messages button is pressed.
+function onFiveNewMessagesButtonPressed() {
+
+  let recentMessagesQuery;
+
+  if(!ONLY_FAVS_GLOBAL){
+    recentMessagesQuery = query(
+      collection(getFirestore(), "messages"),
+      orderBy("timestamp", "desc"),
+      where("timestamp", "<", Timestamp.fromMillis(getEarliestTimestamp())),
+      limit(5)
+    );
+  }else{
+    recentMessagesQuery = query(
+      collection(getFirestore(), "messages"),
+      orderBy("timestamp", "desc"),
+      where("favs", "==", true),
+      where("timestamp", "<", Timestamp.fromMillis(getEarliestTimestamp())),
+      limit(5)
+    );
+  }
+
+  startListeningToTheQuery(recentMessagesQuery);
+}
+
+function startListeningToTheQuery(recentMessagesQuery){
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function (snapshot) {
     snapshot.docChanges().forEach(function (change) {
@@ -141,48 +219,6 @@ function loadMessages() {
           message.imagePath,
           message.favs,
           
-        );
-      }
-    });
-  });
-}
-
-function getEarliestTimestamp() {
-  // get earliest timestamp of all messages
-  const existingMessages = messageListElement.children;
-
-  if (existingMessages.length === 0) {
-    return Date.now();
-  } else {
-    let messageListNode = existingMessages[0];
-    return messageListNode.getAttribute("timestamp");
-  }
-}
-
-// Triggered when the show 5 new messages button is pressed.
-function onFiveNewMessagesButtonPressed() {
-  const recentMessagesQuery = query(
-    collection(getFirestore(), "messages"),
-    orderBy("timestamp", "desc"),
-    where("timestamp", "<", Timestamp.fromMillis(getEarliestTimestamp())),
-    limit(5)
-  );
-
-  // Start listening to the query.
-  onSnapshot(recentMessagesQuery, function (snapshot) {
-    snapshot.docChanges().forEach(function (change) {
-      if (change.type === "removed") {
-        deleteMessage(change.doc.id);
-      } else {
-        var message = change.doc.data();
-        displayMessage(
-          change.doc.id,
-          message.timestamp,
-          message.name,
-          message.text,
-          message.profilePicUrl,
-          message.imageUrl,
-          message.favs
         );
       }
     });
@@ -434,24 +470,45 @@ function addFavouriteButton(id, parent) {
   btn.type = type;
   btn.className = "mdl-button";
   btn.value = "fav";
-  btn.onclick = function () {
+
+  btn.onclick = async function () {
     // Note this is a function
-    toggleMessageToFavourites(id);
+    let favs = await toggleMessageToFavourites(id);
+    parent.setAttribute("favs",favs);
+    tryToFilterMessageDiv(parent,favs);
   };
   //Append the element in page (in span).
   parent.appendChild(btn);
+
+
+}
+
+function tryToFilterMessageDiv(messageListNode,favsAttr){
+  if(ONLY_FAVS_GLOBAL){
+    if(favsAttr){
+      messageListNode.style.display = '';
+    }else{
+      messageListNode.style.display = 'none';
+    }
+  }else{
+    messageListNode.style.display = '';
+  }
 }
 
 async function toggleMessageToFavourites(id){
   const fs = getFirestore();
   const messageref = doc(fs, "messages", id);
-  const mesageSnap = await getDoc(messageref);
+  const messageSnap = await getDoc(messageref);
 
-  if(mesageSnap.exists()){    
+  const newFavs = !messageSnap.data().favs;
+  
+  if(messageSnap.exists()){    
     await updateDoc(messageref, {
-      favs: !mesageSnap.data().favs
+      favs: newFavs
     });
   }
+
+  return newFavs;
 }
 
 function addDeleteButton(id, parent,imagePath) {
@@ -471,11 +528,12 @@ function addDeleteButton(id, parent,imagePath) {
   parent.appendChild(btn);
 }
 
-function createAndInsertMessage(id, timestamp,imagePath) {
+function createAndInsertMessage(id, timestamp,imagePath,favs) {
   const container = document.createElement("div");
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute("id", id);
+  div.setAttribute("favs",favs);
   
   addDeleteButton(id, div,imagePath);
   addFavouriteButton(id,div);
@@ -517,7 +575,7 @@ function createAndInsertMessage(id, timestamp,imagePath) {
 // Displays a Message in the UI.
 function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath,favs) {
   var div =
-    document.getElementById(id) || createAndInsertMessage(id, timestamp,imagePath);
+    document.getElementById(id) || createAndInsertMessage(id, timestamp,imagePath,favs);
 
   // profile picture
   if (picUrl) {
@@ -546,8 +604,6 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath,fa
 
   const fav_color = ";background-color: rgb(255 247 193)!important;";
   
-  console.log(favs);
-
   if(favs){
     div.style = div.style + fav_color;
   }else{
@@ -559,6 +615,7 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl,imagePath,fa
     div.classList.add("visible");
   }, 1);
   messageListElement.scrollTop = messageListElement.scrollHeight;
+
   messageInputElement.focus();
 }
 
@@ -573,6 +630,8 @@ function toggleButton() {
 }
 
 // Shortcuts to DOM Elements.
+var onlyFavsCheckElement =
+  document.getElementById("MdlCheckBox");
 var messageLoadFiveMoreButtonElement =
   document.getElementById("load-five-more");
 var messageListElement = document.getElementById("messages");
@@ -590,6 +649,10 @@ var signInButtonElement = document.getElementById("sign-in");
 var signInButtonElementFacebook = document.getElementById("sign-in-fb");
 var signOutButtonElement = document.getElementById("sign-out");
 var signInSnackbarElement = document.getElementById("must-signin-snackbar");
+
+
+//only show favs
+onlyFavsCheckElement.addEventListener("change",onOnlyFavsCheckElementPressed);
 
 //load five more messages
 messageLoadFiveMoreButtonElement.addEventListener(
