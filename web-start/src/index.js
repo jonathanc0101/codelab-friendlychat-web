@@ -42,7 +42,8 @@ import {
   where,
   Timestamp,
   getDocs,
-  getDoc
+  getDoc,
+  Firestore
 } from "firebase/firestore";
 import {
   getStorage,
@@ -446,9 +447,16 @@ function deleteMessageObject(id,imagePath){
   
 }
 
-async function deleteSelfRecords() {
+async function deleteSelfRecords(excludeFavs) {
+  let q;
+  let fs = getFirestore();
 
-  const q = query(collection(fs, "messages"), where("uid", "==", getAuth().currentUser.uid));
+  if(!excludeFavs){
+    q = query(collection(fs, "messages"), where("uid", "==", getAuth().currentUser.uid));
+  }else{
+    q = query(collection(fs, "messages"), where("uid", "==", getAuth().currentUser.uid),where("favs", "==", false));
+  }
+  
   const querySnapshot = await getDocs(q);
 
   querySnapshot.forEach((d) => {
@@ -459,6 +467,12 @@ async function deleteSelfRecords() {
 function onMessageFormDeleteAllClick(){
   if(isUserSignedIn()){
     deleteSelfRecords();
+  }
+}
+
+function onMessageFormOnlyFavsClick(){
+  if(isUserSignedIn()){
+    deleteSelfRecords(true);
   }
 }
 
@@ -689,6 +703,11 @@ messageFormDeleteAllElement.addEventListener('click', function() {
 document.getElementById("ok-delete-all-button").addEventListener('click', function() {
   dialog.close();
   onMessageFormDeleteAllClick();
+});
+
+document.getElementById("ok-delete-non-favs").addEventListener('click',function(){
+  dialog.close();
+  onMessageFormOnlyFavsClick();
 });
 
 dialog.querySelector('.close').addEventListener('click', function() {
