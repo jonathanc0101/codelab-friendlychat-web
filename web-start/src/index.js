@@ -16,6 +16,7 @@
 "use strict";
 
 let ONLY_FAVS_GLOBAL = false;
+let UNSUB_GLOBAL = null;
 
 import { initializeApp } from "firebase/app";
 import {
@@ -174,7 +175,8 @@ function reloadMessagesFiltered(){
 
 function onOnlyFavsCheckElementPressed(event){
   ONLY_FAVS_GLOBAL = event.currentTarget.checked;
-  reloadMessagesFiltered();
+  deleteAllMessages();
+  loadMessages();
 }
 
 // Triggered when the show 5 new messages button is pressed.
@@ -204,7 +206,11 @@ function onFiveNewMessagesButtonPressed() {
 
 function startListeningToTheQuery(recentMessagesQuery){
   // Start listening to the query.
-  onSnapshot(recentMessagesQuery, function (snapshot) {
+  if(UNSUB_GLOBAL){
+    UNSUB_GLOBAL();
+  }
+  
+  UNSUB_GLOBAL =  onSnapshot(recentMessagesQuery, function (snapshot) {
     snapshot.docChanges().forEach(function (change) {
       if (change.type === "removed") {
         deleteMessage(change.doc.id);
@@ -445,6 +451,11 @@ function deleteMessageObject(id,imagePath){
       });  
     }
   
+}
+
+function deleteAllMessages(){
+  const allMessages = document.querySelectorAll(".message-container");
+  [...allMessages].map( (m) => {m.parentElement.removeChild(m)} );
 }
 
 async function deleteSelfRecords(excludeFavs) {

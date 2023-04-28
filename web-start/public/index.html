@@ -183,18 +183,6 @@
           </div>
         </dialog>
 
-        <label
-          id="only-favs-check"
-          class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect"
-        >
-          <input
-            id="MdlCheckBox"
-            type="checkbox"
-            class="mdl-checkbox__input"
-            value="0"
-          />
-          <span class="mdl-checkbox__label">Only favs</span>
-        </label>
 
         <div
           id="messages-card-container"
@@ -205,6 +193,26 @@
             id="messages-card"
             class="mdl-card mdl-shadow--2dp mdl-cell mdl-cell--12-col mdl-cell--6-col-tablet mdl-cell--6-col-desktop"
           >
+
+          <div class="mdl-cell mdl-cell--12-col mdl-cell--12-col-tablet mdl-grid" style="width: 100%; background-color: #ddd;">
+
+            <label
+            id="only-favs-check"
+            class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect"  
+            >
+  
+            <input
+            id="MdlCheckBox"
+            type="checkbox"
+            class="mdl-checkbox__input"
+            value="0"
+            />
+            <span class="mdl-checkbox__label">Only favs</span>
+          </label>
+  
+        </div>
+  
+
             <div class="mdl-card__supporting-text mdl-color-text--grey-600">
               <div id="messages"></div>
               <form id="message-form" action="#">
